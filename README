@@ -1,0 +1,17 @@
+# install PostgreSQL
+apt install postgresql
+
+# install pipx
+sudo apt update
+sudo apt install pipx
+pipx ensurepath
+sudo pipx ensurepath --global # optional to allow pipx actions with --global argument
+
+# install Poetry
+pipx install poetry
+poetry completions bash >> ~/.bash_completion
+
+# add PostgreSQL user
+# postgres/postgres#123
+# bluescript/bluescript#123
+# bluescript_app/bluescript#123

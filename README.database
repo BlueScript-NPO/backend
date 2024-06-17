@@ -1,0 +1,28 @@
+-- Database: bluescript
+-- DROP DATABASE IF EXISTS bluescript;
+CREATE DATABASE bluescript
+    WITH
+    OWNER = bluescript
+    ENCODING = 'UTF8'
+    LC_COLLATE = 'C.UTF-8'
+    LC_CTYPE = 'C.UTF-8'
+    LOCALE_PROVIDER = 'libc'
+    TABLESPACE = pg_default
+    CONNECTION LIMIT = -1
+    IS_TEMPLATE = False;
+
+GRANT TEMPORARY, CONNECT ON DATABASE bluescript TO PUBLIC;
+GRANT ALL ON DATABASE bluescript TO bluescript;
+GRANT TEMPORARY ON DATABASE bluescript TO bluescript_app;
+
+
+
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    full_name VARCHAR(100),
+    email VARCHAR(100) UNIQUE NOT NULL,
+    hashed_password VARCHAR(255) NOT NULL,
+    disabled BOOLEAN DEFAULT FALSE
+);
+
