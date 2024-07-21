@@ -1,28 +1,103 @@
+-- Role: bluescript
+-- DROP ROLE IF EXISTS bluescript;
+
+CREATE ROLE bluescript WITH
+  LOGIN
+  SUPERUSER
+  INHERIT
+  CREATEDB
+  CREATEROLE
+  NOREPLICATION
+  BYPASSRLS
+  ENCRYPTED PASSWORD 'SCRAM-SHA-256$4096:ZUjfIMoLoKzebBTWNx7AWQ==$s0xGyMNMwTInku0XF0nz22URYhiqDxoMXTNYpKPeThg=:A4EWJExllGBSMcw7y+yT5+R9/ANQ19Piy1JMA0EGl/c=';
+
+
+
+
+
+-- Role: bluescript_app
+-- DROP ROLE IF EXISTS bluescript_app;
+
+CREATE ROLE bluescript_app WITH
+  LOGIN
+  NOSUPERUSER
+  INHERIT
+  NOCREATEDB
+  NOCREATEROLE
+  NOREPLICATION
+  NOBYPASSRLS
+  ENCRYPTED PASSWORD 'SCRAM-SHA-256$4096:KOcA2eb0Fn7h18m605grEA==$nLrqHH3XVe6KXdSoxQ9TIfHwhg8M+ylCX+n+RbXRRtk=:ZzDusrYVMxJ+/xJ+EQXr4/tsT+iDZ8KAFCtQvoJBifA=';
+
+
+
+
+
+
+
 -- Database: bluescript
+
 -- DROP DATABASE IF EXISTS bluescript;
+
 CREATE DATABASE bluescript
     WITH
     OWNER = bluescript
     ENCODING = 'UTF8'
     LC_COLLATE = 'C.UTF-8'
     LC_CTYPE = 'C.UTF-8'
-    LOCALE_PROVIDER = 'libc'
     TABLESPACE = pg_default
     CONNECTION LIMIT = -1
     IS_TEMPLATE = False;
 
 GRANT TEMPORARY, CONNECT ON DATABASE bluescript TO PUBLIC;
+
 GRANT ALL ON DATABASE bluescript TO bluescript;
-GRANT TEMPORARY ON DATABASE bluescript TO bluescript_app;
+
+GRANT ALL ON DATABASE bluescript TO bluescript_app;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE bluescript
+GRANT ALL ON TABLES TO bluescript_app;
 
 
 
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    username VARCHAR(50) UNIQUE NOT NULL,
-    full_name VARCHAR(100),
-    email VARCHAR(100) UNIQUE NOT NULL,
-    hashed_password VARCHAR(255) NOT NULL,
-    disabled BOOLEAN DEFAULT FALSE
-);
+-- Table: public.user
 
+-- DROP TABLE IF EXISTS public."user";
+
+CREATE TABLE IF NOT EXISTS public."user"
+(
+    id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
+    username character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    full_name character varying(100) COLLATE pg_catalog."default",
+    email character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    hashed_password character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    disabled boolean NOT NULL DEFAULT false,
+    CONSTRAINT user_pkey PRIMARY KEY (id),
+    CONSTRAINT username UNIQUE (username)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public."user"
+    OWNER to bluescript;
+
+GRANT ALL ON TABLE public."user" TO bluescript;
+
+GRANT ALL ON TABLE public."user" TO bluescript_app;
+-- Index: idx_email
+
+-- DROP INDEX IF EXISTS public.idx_email;
+
+CREATE INDEX IF NOT EXISTS idx_email
+    ON public."user" USING btree
+    (email COLLATE pg_catalog."default" ASC NULLS LAST)
+    WITH (deduplicate_items=True)
+    TABLESPACE pg_default;
+-- Index: idx_username
+
+-- DROP INDEX IF EXISTS public.idx_username;
+
+CREATE INDEX IF NOT EXISTS idx_username
+    ON public."user" USING btree
+    (username COLLATE pg_catalog."default" ASC NULLS LAST)
+    WITH (deduplicate_items=True)
+    TABLESPACE pg_default;

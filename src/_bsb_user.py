@@ -1,11 +1,15 @@
 
+from datetime import datetime, timedelta
+
 from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
 from sqlalchemy.orm import Session
 from sqlalchemy import Column, Integer, Result, String, Boolean
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from argon2 import PasswordHasher
+from jose import jwt
 
 from pydantic import BaseModel
 from typing import Optional, Tuple
@@ -16,8 +20,8 @@ from bsb_database import Base, get_database_session, SessionLocal
 class UserBase(BaseModel):
     username: str
     email: str
-    full_name: Optional[str] = None
-    disabled: Optional[bool] = None
+    full_name: str | None = None
+    disabled: str | None = None
 
 class UserCreate(UserBase):
     password: str
@@ -30,6 +34,11 @@ class User(UserBase):
 class UserInDB(User):
     hashed_password: str
 
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -39,7 +48,7 @@ class TokenData(BaseModel):
 
 
 class UserTable(Base):
-    __tablename__: str = "users"
+    __tablename__: str = "user"
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
     full_name = Column(String)
@@ -55,6 +64,21 @@ def verify_password(plain_password, hashed_password) -> bool:
 def get_password_hash(password) -> str:
     password_hasher = PasswordHasher()
     return password_hasher.hash(password)
+
+
+SECRET_KEY: bytes = bytes.fromhex("552f7649de273c32eb3e457244c619f73bb60ec6f3c236fb7476508805ea1efa")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 120
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="authentication")
+
+
+def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)):
+    to_encode = data.copy()
+    expire = datetime.now() + expires_delta
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
 
 
 def get_user(session: Session, user_id: int) -> UserTable | None:
@@ -88,17 +112,35 @@ def create_user(session: Session, user: UserCreate) -> UserTable:
 app = FastAPI()
 
 
-@app.post("/User/", response_model=User)
+@app.post("/user/", response_model=User)
 def create_new_user(user: UserCreate, session: Session = Depends(get_database_session)):
     db_user = create_user(session, user)
     return db_user
 
 
-# if __name__ == "__main__":
-#     user = UserCreate(
-#         username="Macroft2",
-#         email="macroft2@gmail.com",
-#         full_name="Macroft Holmes",
-#         password="1234"
-#     )
-#     create_user(SessionLocal(), user)
+@app.post("/authentication", response_model=schemas.Token)
+async def login_for_access_token(db: AsyncSession = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+        
+    user = await crud.get_user_by_username(db, form_data.username)
+    if not user or not auth.verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = auth.create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
+    return {"access_token": access_token, "token_type": "bearer"}
+
+# @app.post("/user/login")
+# def login(user: UserLogin, session: Session = Depends(get_database_session)):
+#     db_user = get_user_by_username(session, username=user.username)
+#     if not db_user or not verify_password(user.password, db_user.hashed_password):
+#         raise HTTPException(status_code=400, detail="Invalid username or password")
+#     return {"message": "Login successful"}
+
+
+@app.get("/user/me")
+async def read_users_me(current_user: User = Depends(get_current_user)):
+    return current_user
